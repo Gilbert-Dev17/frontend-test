@@ -24,7 +24,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { uploadCaseFile } from "@/lib/storage/case-view/UploadCaseFile";
-import { UploadAndClassifyController } from "./UploadAndClassifyController";
 
 import { z } from "zod";
 // for the file upload validation

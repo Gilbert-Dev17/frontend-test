@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { ClassifyCaseFileInput, ClassificationResult } from "./constant";
+import { performance } from "perf_hooks"; // Node.js performance API
 
 class AppError extends Error {
   code: string;
@@ -35,10 +36,15 @@ export async function classifyCaseFile(
   let lastError: unknown = null;
   let serverWasReachable = false;
 
+  // Start total timer
+  const totalStart = performance.now();
+
   for (const baseUrl of urls) {
     const fullUrl = `${baseUrl}?case_id=${caseId}&file_url=${encodeURIComponent(filePath)}`;
 
     try {
+      const requestStart = performance.now();
+
       const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
@@ -47,6 +53,9 @@ export async function classifyCaseFile(
         },
         body: JSON.stringify(requestBody),
       });
+
+      const requestEnd = performance.now();
+      console.info(`Request to ${baseUrl} took ${(requestEnd - requestStart).toFixed(2)} ms`);
 
       serverWasReachable = true;
 
@@ -62,7 +71,14 @@ export async function classifyCaseFile(
         throw new AppError("CLASSIFICATION_FAILED");
       }
 
+      const parseStart = performance.now();
       const data = await response.json();
+      const parseEnd = performance.now();
+
+      console.info(`Response parsing took ${(parseEnd - parseStart).toFixed(2)} ms`);
+
+      const totalEnd = performance.now();
+      console.info(`Total classifyCaseFile runtime: ${(totalEnd - totalStart).toFixed(2)} ms`);
 
       return {
         documentId: data.doc_id,
@@ -80,7 +96,13 @@ export async function classifyCaseFile(
 
   console.error("All classification endpoints failed. Cleaning up...", lastError);
 
+  const cleanupStart = performance.now();
   await cleanupFailedUpload(doc_id);
+  const cleanupEnd = performance.now();
+  console.info(`Cleanup operation took ${(cleanupEnd - cleanupStart).toFixed(2)} ms`);
+
+  const totalEnd = performance.now();
+  console.info(`Total classifyCaseFile runtime (including cleanup): ${(totalEnd - totalStart).toFixed(2)} ms`);
 
   if (!serverWasReachable) {
     throw new AppError("SERVER_NOT_UP");
